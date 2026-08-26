@@ -1,0 +1,59 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE and local assistant metadata
+.vscode/
+.idea/
+.agents/
+.codex/
+.trae/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Experiment logs and generated outputs
+*.log
+*.out
+/outputs/*
+!/outputs/.gitkeep
+/result/
+/logs_perturb/
+/report_figs/
+/repro_runs/
+
+# Root-level experiment result files
+/*.txt
+/*.csv
+!/requirements.txt
+
+# QoPS experiment outputs; retain source, docs, and service_features.csv
+/experiments/qops/result_*.txt
+
+# WS-DREAM under data/ is intentionally versioned.
+
+# Full simulated matrices are reproducible and generated on demand.
+/data/simulated/full/
+
+# Pilot data and simulation metadata are intentionally versioned.
+!/data/simulated/pilot/
+!/data/simulated/pilot/**
