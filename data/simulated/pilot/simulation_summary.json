@@ -1,0 +1,18 @@
+{
+  "version": "v1",
+  "seed": 2026,
+  "random_noise": false,
+  "users": 339,
+  "services": 4612,
+  "static_entities": 192,
+  "dynamic_entities": 64,
+  "entities_without_services": 0,
+  "rt_observations": 1482691,
+  "tp_observations": 1447775,
+  "rt_mean_original": 0.9182335786755298,
+  "rt_mean_simulated": 1.0009643974387388,
+  "tp_mean_original": 47.44711746852929,
+  "tp_mean_simulated": 44.14166915774838,
+  "rt_mean_relative_change": 0.09012077433131105,
+  "tp_mean_relative_change": -0.06953282962391802
+}
