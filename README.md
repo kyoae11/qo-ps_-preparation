@@ -129,3 +129,29 @@ bash scripts/run_first_comparison.sh 0 50
 - 不要将 `rt_penalty`、`tp_penalty` 或 multiplier 作为模型输入；
 - 单次物理调用成本、服务半径、速度、电量和位置在第一版中只保存，不参与标签生成；
 - 当前实验只能证明模型能够学习预设的结构化实体扰动，不能直接证明真实设备中的因果关系。
+
+## 第二轮：实体信号检查与门控融合
+
+先验证实体属性能否预测仿真标签中注入的扰动：
+
+```bash
+python tools/check_entity_predictability.py
+```
+
+残差门控模型保持基础AFIL主干不变，通过可学习门值控制实体信息的注入强度：
+
+```text
+h_fused = h_afil + sigmoid(Gate([h_afil, h_entity])) × h_entity
+```
+
+运行单项实验：
+
+```bash
+python -m experiments.run_comparison --model entity_gated --type rt --md 0.10 --seed 0 --epochs 50 --cuda 0
+```
+
+在已有baseline和entity_concat五种子结果的基础上，串行补跑门控模型：
+
+```bash
+bash scripts/run_gated_validation.sh 0 50
+```

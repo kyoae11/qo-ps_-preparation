@@ -1,4 +1,4 @@
-"""基础 AFIL 与实体特征直接融合模型的公平对照实验。"""
+"""基础 AFIL、实体直接融合与残差门控融合的公平对照实验。"""
 
 from __future__ import annotations
 
@@ -77,12 +77,14 @@ class AFILModel(nn.Module):
         )
         base_fields = len(cardinalities)
 
-        if model_name == "entity_concat":
+        if model_name in {"entity_concat", "entity_gated"}:
             self.register_buffer("entity_features", entity_features)
             self.entity_type_embedding = nn.Embedding(2, embed_dim)
             self.interface_embedding = nn.Embedding(4, embed_dim)
             self.capacity_projection = nn.Linear(1, embed_dim)
             self.load_projection = nn.Linear(1, embed_dim)
+
+        if model_name == "entity_concat":
             base_fields += 4
 
         self.attention = SharedProjectionAttention(embed_dim, d_k, n_head)
@@ -92,7 +94,27 @@ class AFILModel(nn.Module):
             layers.extend([nn.Linear(previous, width), nn.ReLU()])
             previous = width
         self.dnn = nn.Sequential(*layers)
+
+        if model_name == "entity_gated":
+            self.entity_encoder = nn.Sequential(
+                nn.Linear(4 * embed_dim, previous),
+                nn.ReLU(),
+                nn.LayerNorm(previous),
+            )
+            self.entity_gate = nn.Linear(previous * 2, previous)
+            # 初始时主要依赖已验证的 AFIL 主干，再逐步学习实体信息的注入强度。
+            nn.init.zeros_(self.entity_gate.weight)
+            nn.init.constant_(self.entity_gate.bias, -2.0)
         self.output = nn.Linear(previous, 1)
+
+    def encode_entity(self, service_id):
+        ef = self.entity_features[service_id]
+        return torch.cat([
+            self.entity_type_embedding(ef[:, 0].long()),
+            self.interface_embedding(ef[:, 1].long()),
+            self.capacity_projection(ef[:, 2:3]),
+            self.load_projection(ef[:, 3:4]),
+        ], dim=1)
 
     def forward(self, user_id, service_id):
         uf = self.user_features[user_id]
@@ -101,15 +123,17 @@ class AFILModel(nn.Module):
         service_tokens = [embedding(sf[:, idx]) for idx, embedding in enumerate(self.service_embeddings)]
         fields = user_tokens + service_tokens
         if self.model_name == "entity_concat":
-            ef = self.entity_features[service_id]
-            fields.extend([
-                self.entity_type_embedding(ef[:, 0].long()),
-                self.interface_embedding(ef[:, 1].long()),
-                self.capacity_projection(ef[:, 2:3]),
-                self.load_projection(ef[:, 3:4]),
-            ])
+            entity_tokens = self.encode_entity(service_id).view(service_id.shape[0], 4, -1)
+            fields.extend(entity_tokens.unbind(dim=1))
         encoded = self.attention(torch.stack(fields, dim=1)).flatten(start_dim=1)
-        return self.output(self.dnn(encoded))
+        base_representation = self.dnn(encoded)
+        if self.model_name == "entity_gated":
+            entity_representation = self.entity_encoder(self.encode_entity(service_id))
+            gate = torch.sigmoid(
+                self.entity_gate(torch.cat([base_representation, entity_representation], dim=1))
+            )
+            base_representation = base_representation + gate * entity_representation
+        return self.output(base_representation)
 
 
 def load_entity_tensor(path: Path):
@@ -147,8 +171,8 @@ def evaluate(model, loader, device):
 
 
 def run(args):
-    if args.model not in {"baseline", "entity_concat"}:
-        raise ValueError("model 必须是 baseline 或 entity_concat")
+    if args.model not in {"baseline", "entity_concat", "entity_gated"}:
+        raise ValueError("model 必须是 baseline、entity_concat 或 entity_gated")
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == "cuda":
@@ -249,7 +273,9 @@ def run(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="运行基础AFIL与实体增强AFIL对照实验")
-    parser.add_argument("--model", choices=["baseline", "entity_concat"], required=True)
+    parser.add_argument(
+        "--model", choices=["baseline", "entity_concat", "entity_gated"], required=True
+    )
     parser.add_argument("--type", choices=["rt", "tp"], default="rt")
     parser.add_argument("--md", type=float, default=0.10)
     parser.add_argument("--seed", type=int, default=0)
