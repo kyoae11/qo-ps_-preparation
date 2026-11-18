@@ -57,3 +57,9 @@ Desktop.ini
 # Pilot data and simulation metadata are intentionally versioned.
 !/data/simulated/pilot/
 !/data/simulated/pilot/**
+
+# v3 experiment artifacts
+experiments/v3_stages/__pycache__/
+*.pkl
+*.pt
+*.tar.gz

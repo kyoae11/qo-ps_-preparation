@@ -1,0 +1,10 @@
+# Python 3.10. Install PyTorch separately from the official CUDA 12.8 wheel index:
+# python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
+# Full environment_requirements.txt is an audit snapshot, including Ubuntu packages.
+numpy==1.26.4
+pandas==2.1.4
+scikit-learn==1.3.2
+scipy==1.15.3
+simpy==4.1.1
+joblib==1.6.0
+threadpoolctl==3.8.0
